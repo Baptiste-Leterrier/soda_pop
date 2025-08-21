@@ -1,4 +1,4 @@
-name = "soda-pop-bubbles"
+name = "sodapop"
 main = "_worker.js"
 compatibility_date = "2024-10-01"
 
