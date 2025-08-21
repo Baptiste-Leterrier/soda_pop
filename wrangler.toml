@@ -10,8 +10,5 @@ class_name = "RoomDurableObject"
 tag = "v1"
 new_classes = ["RoomDurableObject"]
 
-[site]              # only for Workers Sites; for Cloudflare Pages, omit [site]
-bucket = "./"       # serve index.html etc. (if using Workers Sites)
-
 [assets]            # for Cloudflare Pages Functions-in-Pages
 binding = "ASSETS"
