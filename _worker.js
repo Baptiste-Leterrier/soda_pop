@@ -104,11 +104,8 @@ export default {
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
 
-    try {
-      return await getAssetFromKV({ request, waitUntil: ctx.waitUntil.bind(ctx) }, { ASSET_NAMESPACE: env.__STATIC_CONTENT });
-    } catch (e) {
-      return new Response("Not found", { status: 404 });
-    }
+    // Let Pages handle static assets
+    return env.ASSETS.fetch(request);
   }
 };
 
