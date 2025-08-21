@@ -96,14 +96,23 @@ export class RoomDurableObject {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
     if (url.pathname === '/ws') {
       const id = env.ROOM_DO.idFromName('global-room');
       const stub = env.ROOM_DO.get(id);
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
-    return env.ASSETS.fetch(request); // Pages injects this
+
+    // Serve index.html directly
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return new Response(await env.ASSETS.fetch(new Request("http://fake/index.html")), {
+        headers: { "Content-Type": "text/html; charset=UTF-8" }
+      });
+    }
+
+    return new Response("Not found", { status: 404 });
   }
-};
+}
 
 export const durable_object = { RoomDurableObject };
 
