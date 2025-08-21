@@ -30,7 +30,7 @@ export class RoomDurableObject {
   // Periodic broadcast of world state for late joiners / smoothing
   snapshotTick() {
     const clients = [];
-    for (const [id, c] of this.clients) {
+    for (const [, c] of this.clients) {
       if (c.state) clients.push(c.state);
     }
     const payload = {type:'state', clients};
@@ -63,18 +63,24 @@ export class RoomDurableObject {
             this.clients.set(clientId, {ws: server, lastSeen: Date.now(), state: null});
             // Immediately send current snapshot to the new client
             const clients = [];
-            for (const [id, c] of this.clients) if (c.state) clients.push(c.state);
+            for (const [, c] of this.clients) if (c.state) clients.push(c.state);
             server.send(JSON.stringify({type:'state', clients}));
           } else if (msg.type === 'update' && clientId && msg.state) {
             const c = this.clients.get(clientId);
             if (c) {
               c.lastSeen = Date.now();
               c.state = msg.state; // store latest state
-              // Relay to others
+              // Relay to others with rate limiting
               this.broadcast({type:'state', clients:[msg.state]}, clientId);
             }
+          } else if (msg.type === 'pong' && clientId) {
+            // Handle pong response to keep connection alive
+            const c = this.clients.get(clientId);
+            if (c) c.lastSeen = Date.now();
           }
-        } catch {}
+        } catch (e) {
+          console.error('WebSocket message error:', e);
+        }
       });
 
       server.addEventListener('close', () => {
@@ -94,7 +100,7 @@ export class RoomDurableObject {
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname === '/ws') {
@@ -108,6 +114,6 @@ export default {
   }
 }
 
-export const durable_object = { RoomDurableObject };
+export { RoomDurableObject };
 
 export const onRequest = undefined; // ensure Pages Functions use module syntax

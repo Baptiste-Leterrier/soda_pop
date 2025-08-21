@@ -105,16 +105,17 @@
         this.vy += RISE_ACCEL * dt * dpr * (1 + (this.r/(8*dpr)));
         this.vy *= Math.pow(RISE_DRAG, dt);
         this.y += this.vy * dt;
-        if (this.y <= 0) {
+        if (this.y <= this.r) {
           this.state = 'pop';
           this.popStart = t;
         }
       } else if (this.state === 'pop') {
-        // simple fade-out + shrink over 200ms
+        // simple fade-out + shrink over 500ms
         const elapsed = t - this.popStart;
-        const POP_DURATION = 200;
-        this.r *= 0.95; // shrink
-        this.color = `rgba(255,255,255,${1 - elapsed/POP_DURATION})`; // fade
+        const POP_DURATION = 500;
+        this.r *= 0.98; // slower shrink
+        const alpha = Math.max(0, 1 - elapsed/POP_DURATION);
+        this.color = this.me ? `rgba(144,238,144,${alpha})` : `rgba(173,216,230,${alpha})`;
         if (elapsed >= POP_DURATION) this.reset();
       }
       this.ensureInBounds();
@@ -141,12 +142,16 @@
     applyRemote(state) {
       // Snap toward remote state, then let local physics continue for fluidity
       const lerp = (a,b,s)=>a+(b-a)*s;
-      const s = 0.35;
+      // Use lighter interpolation to reduce jitter
+      const s = 0.15;
       this.x = lerp(this.x, state.x, s);
       this.y = lerp(this.y, state.y, s);
       this.r = lerp(this.r, state.r, s);
       this.vy = lerp(this.vy, state.vy ?? this.vy, s);
-      this.state = state.state || this.state;
+      // Only update state if significantly different to avoid conflicts
+      if (state.state !== this.state && (state.state === 'pop' || this.state === 'rest')) {
+        this.state = state.state;
+      }
       this.lastGrowthAt = state.lastGrowthAt || this.lastGrowthAt;
     }
   }
@@ -172,17 +177,25 @@
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(ev.data);
-          if (msg.type === 'state' && Array.isArray(msg.clients)) {
+          if (msg.type === 'ping') {
+            // Respond to server ping to keep connection alive
+            return;
+          } else if (msg.type === 'state' && Array.isArray(msg.clients)) {
             for (const st of msg.clients) {
               if (!st || !st.id || st.id === myId) continue;
               let b = others.get(st.id);
-              if (!b) { b = new Bubble({id:st.id, me:false}); others.set(st.id,b); }
+              if (!b) { 
+                b = new Bubble({id:st.id, me:false}); 
+                others.set(st.id,b); 
+              }
               b.applyRemote(st);
             }
           } else if (msg.type === 'goodbye' && msg.id) {
             others.delete(msg.id);
           }
-        } catch {}
+        } catch(e) {
+          console.warn('WebSocket message error:', e);
+        }
       };
       ws.onclose = () => scheduleReconnect();
       ws.onerror = () => { try { ws.close(); } catch {} };
@@ -193,7 +206,13 @@
   function scheduleReconnect() {
     wsOpen = false;
     if (reconnectTimer) return;
-    reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, 1000 + Math.random()*1000);
+    // Exponential backoff with jitter for reconnection
+    const delay = Math.min(5000, 1000 + Math.random()*2000);
+    reconnectTimer = setTimeout(() => { 
+      reconnectTimer = null; 
+      console.log('Attempting to reconnect WebSocket...');
+      connect(); 
+    }, delay);
   }
   connect();
 
