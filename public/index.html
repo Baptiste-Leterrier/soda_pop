@@ -102,10 +102,20 @@
         this.y = Math.max(this.y + (bob*0.02), 0.90*worldH());
         if (this.r/dpr >= R_POP_THRESHOLD) this.state = 'rise';
       } else if (this.state === 'rise') {
-        this.vy += RISE_ACCEL * dt * dpr * (1 + (this.r/(8*dpr))); // slightly faster with size
+        this.vy += RISE_ACCEL * dt * dpr * (1 + (this.r/(8*dpr)));
         this.vy *= Math.pow(RISE_DRAG, dt);
         this.y += this.vy * dt;
-        if (this.y <= -this.r) this.reset(); // pop and immediately respawn
+        if (this.y <= 0) {
+          this.state = 'pop';
+          this.popStart = t;
+        }
+      } else if (this.state === 'pop') {
+        // simple fade-out + shrink over 200ms
+        const elapsed = t - this.popStart;
+        const POP_DURATION = 200;
+        this.r *= 0.95; // shrink
+        this.color = `rgba(255,255,255,${1 - elapsed/POP_DURATION})`; // fade
+        if (elapsed >= POP_DURATION) this.reset();
       }
       this.ensureInBounds();
     }
