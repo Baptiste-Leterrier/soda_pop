@@ -114,6 +114,5 @@ export default {
   }
 }
 
-export { RoomDurableObject };
 
 export const onRequest = undefined; // ensure Pages Functions use module syntax
