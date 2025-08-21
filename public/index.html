@@ -134,28 +134,71 @@ function hideHelp() {
 }
 
 (() => {
+  // ---- iOS/Safari compatibility detection (must be first) ----
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
   const WS_PATH = (location.protocol === 'https:' ? 'wss://' : 'ws://') + "sodapop.coresentry.workers.dev" + '/ws';
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   let dpr = Math.max(1, window.devicePixelRatio || 1);
 
   function resize() {
-    dpr = Math.max(1, window.devicePixelRatio || 1);
-    const w = Math.floor(window.innerWidth  * dpr);
+    // iOS Safari DPR handling
+    if (isIOS && isSafari) {
+      // iOS Safari sometimes reports incorrect DPR, clamp it
+      dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    } else {
+      dpr = Math.max(1, window.devicePixelRatio || 1);
+    }
+    
+    const w = Math.floor(window.innerWidth * dpr);
     const h = Math.floor(window.innerHeight * dpr);
+    
     if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w; canvas.height = h;
+      canvas.width = w; 
+      canvas.height = h;
+      
+      // iOS Safari requires explicit style setting
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      
+      // Force context reset on iOS to avoid rendering issues
+      if (isIOS) {
+        const currentFillStyle = ctx.fillStyle;
+        ctx.fillStyle = currentFillStyle;
+      }
     }
   }
   window.addEventListener('resize', resize, {passive:true});
   resize();
-
+  
   // ---- utilities ----
   const rand = (a,b) => a + Math.random()*(b-a);
-  const now = () => performance.now();
+  const now = () => {
+    if (typeof performance !== 'undefined' && performance.now) {
+      return performance.now();
+    }
+    return Date.now();
+  };
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
-    ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
+  
+  // iOS-compatible UUID generation
+  const uuid = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID();
+      } catch (e) {
+        console.warn('crypto.randomUUID failed, using fallback');
+      }
+    }
+    // Fallback UUID generation for iOS Safari
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
 
   // ---- simulation params (tuned for "quick but not too much") ----
   const R_START_MIN = 2.5;      // px
@@ -228,7 +271,9 @@ function hideHelp() {
         if (this.r >= R_POP_THRESHOLD) this.state = 'rise';
       } else if (this.state === 'rise') {
         this.vy += RISE_ACCEL * dt * dpr * (1 + (this.r/8));
-        this.vy *= Math.pow(RISE_DRAG, dt);
+        // Replace Math.pow with faster operation for iOS performance
+        const dragFactor = Math.exp(Math.log(RISE_DRAG) * dt);
+        this.vy *= dragFactor;
         this.y += this.vy * dt;
         if (this.y <= this.r * dpr) {
           this.state = 'pop';
@@ -248,17 +293,34 @@ function hideHelp() {
     draw(ctx) {
       // Convert logical radius to device pixels for drawing
       const drawR = this.r * dpr;
+      
+      // Main bubble - use rgba for iOS compatibility instead of globalAlpha
       ctx.beginPath();
       ctx.arc(this.x, this.y, drawR, 0, Math.PI*2);
-      ctx.fillStyle = this.color;
-      ctx.globalAlpha = 0.9;
+      
+      // Extract alpha from color if it's rgba, otherwise use 0.9
+      let bubbleColor = this.color;
+      if (typeof this.color === 'string' && !this.color.startsWith('rgba')) {
+        // Convert hex/named colors to rgba with 0.9 opacity for iOS
+        if (this.color === '#90ee90') {
+          bubbleColor = 'rgba(144,238,144,0.9)';
+        } else if (this.color === '#add8e6') {
+          bubbleColor = 'rgba(173,216,230,0.9)';
+        } else {
+          bubbleColor = this.color; // Keep rgba colors as-is
+        }
+      }
+      
+      ctx.fillStyle = bubbleColor;
       ctx.fill();
-      ctx.globalAlpha = 1;
-      // subtle highlight
-      ctx.beginPath();
-      ctx.arc(this.x - drawR*0.35, this.y - drawR*0.35, drawR*0.25, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fill();
+      
+      // Subtle highlight - simplified for iOS performance
+      if (drawR > 3) { // Only draw highlight for larger bubbles
+        ctx.beginPath();
+        ctx.arc(this.x - drawR*0.35, this.y - drawR*0.35, Math.max(1, drawR*0.25), 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fill();
+      }
     }
     serialize(t) {
       return {
@@ -305,11 +367,26 @@ function hideHelp() {
   function connect() {
     try {
       ws = new WebSocket(WS_PATH);
-      ws.binaryType = 'arraybuffer';
+      // Remove binaryType setting for iOS compatibility
+      
       ws.onopen = () => {
         wsOpen = true;
-        ws.send(JSON.stringify({type:'hello', id:myId, ua:navigator.userAgent, w:worldW(), h:worldH()}));
+        try {
+          const helloMsg = {
+            type:'hello', 
+            id:myId, 
+            ua:navigator.userAgent, 
+            w:worldW(), 
+            h:worldH(),
+            ios: isIOS,
+            safari: isSafari
+          };
+          ws.send(JSON.stringify(helloMsg));
+        } catch(e) {
+          console.warn('Failed to send hello message:', e);
+        }
       };
+      
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(ev.data);
@@ -333,9 +410,19 @@ function hideHelp() {
           console.warn('WebSocket message error:', e);
         }
       };
-      ws.onclose = () => scheduleReconnect();
-      ws.onerror = () => { try { ws.close(); } catch {} };
-    } catch {
+      
+      ws.onclose = (event) => {
+        wsOpen = false;
+        console.log('WebSocket closed:', event.code, event.reason);
+        scheduleReconnect();
+      };
+      
+      ws.onerror = (error) => { 
+        console.warn('WebSocket error:', error);
+        try { ws.close(); } catch {} 
+      };
+    } catch(e) {
+      console.warn('Failed to create WebSocket:', e);
       scheduleReconnect();
     }
   }
@@ -354,30 +441,81 @@ function hideHelp() {
 
   // ---- Main loop ----
   let lastT = now();
+  let frameCount = 0;
+  
   function frame() {
-    const t = now();
-    const dt = Math.max(1, Math.min(40, t - lastT)); // clamp for stability
-    lastT = t;
+    try {
+      const t = now();
+      const dt = Math.max(1, Math.min(40, t - lastT)); // clamp for stability
+      lastT = t;
+      frameCount++;
 
-    // update local bubble
-    me.update(dt, t);
+      // update local bubble
+      me.update(dt, t);
 
-    // send state occasionally
-    if (wsOpen && (t - lastSend >= SEND_INTERVAL)) {
-      lastSend = t;
-      try { ws.send(JSON.stringify({type:'update', id: myId, state: me.serialize(t)})); } catch {}
+      // send state occasionally
+      if (wsOpen && (t - lastSend >= SEND_INTERVAL)) {
+        lastSend = t;
+        try { 
+          ws.send(JSON.stringify({type:'update', id: myId, state: me.serialize(t)})); 
+        } catch(e) {
+          console.warn('Failed to send WebSocket update:', e);
+          wsOpen = false;
+        }
+      }
+
+      // draw - with iOS optimizations
+      const w = worldW();
+      const h = worldH();
+      
+      // Clear canvas - use fillRect on iOS for better performance
+      if (isIOS) {
+        ctx.fillStyle = '#0b0f14';
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        ctx.clearRect(0, 0, w, h);
+      }
+      
+      // draw others then me to ensure yours remains visually on top
+      for (const b of others.values()) {
+        b.update(dt, t);
+        b.draw(ctx);
+      }
+      me.draw(ctx);
+
+      requestAnimationFrame(frame);
+      
+    } catch(e) {
+      console.error('Animation frame error:', e);
+      // Try to recover by restarting the animation loop
+      setTimeout(() => requestAnimationFrame(frame), 100);
     }
-
-    // draw
-    ctx.clearRect(0,0,worldW(),worldH());
-    // draw gentle vignette background bubbles (optional flair)
-    // (kept minimal to stay performant; main focus is live bubbles)
-    // draw others then me to ensure yours remains visually on top
-    for (const b of others.values()) b.update(dt, t), b.draw(ctx);
-    me.draw(ctx);
-
-    requestAnimationFrame(frame);
   }
+  
+  // Add visibility change handling for iOS Safari
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      // Reset timing when returning to tab to avoid jumps
+      lastT = now();
+    }
+  });
+  
+  // iOS Safari memory management
+  if (isIOS) {
+    // Handle page visibility and memory pressure
+    window.addEventListener('pagehide', () => {
+      if (ws) {
+        try { ws.close(); } catch {}
+      }
+    });
+    
+    window.addEventListener('pageshow', () => {
+      if (!wsOpen && !reconnectTimer) {
+        setTimeout(connect, 1000);
+      }
+    });
+  }
+  
   requestAnimationFrame(frame);
 })();
 </script>
