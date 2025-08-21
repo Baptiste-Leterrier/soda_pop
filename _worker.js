@@ -103,14 +103,8 @@ export default {
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
 
-    // Serve index.html directly
-    if (url.pathname === '/' || url.pathname === '/index.html') {
-      return new Response(await env.ASSETS.fetch(new Request("http://fake/index.html")), {
-        headers: { "Content-Type": "text/html; charset=UTF-8" }
-      });
-    }
-
-    return new Response("Not found", { status: 404 });
+    // Serve static files
+    return env.ASSETS.fetch(request);
   }
 }
 
