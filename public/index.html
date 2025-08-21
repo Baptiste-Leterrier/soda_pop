@@ -2,49 +2,73 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
 <title>Soda Pop Bubbles</title>
 <style>
-  html, body { height:100%; margin:0; background:#0b0f14; overflow:hidden; }
+  html, body { height:100%; margin:0; background:#0b0f14; overflow:hidden; touch-action:none; }
   canvas { display:block; width:100vw; height:100vh; }
   .hud {
-    position:fixed; left:12px; bottom:12px; padding:6px 10px;
-    font:12px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    position:fixed; left:8px; bottom:8px; padding:4px 8px;
+    font:10px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     color:#a0b3c6; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
-    border-radius:8px; user-select:none; pointer-events:none;
+    border-radius:6px; user-select:none; pointer-events:none;
   }
   .hud b { color:#e6f4ff }
+  @media (min-width: 600px) {
+    .hud { 
+      left:12px; bottom:12px; padding:6px 10px; 
+      font-size:12px; line-height:1.3; border-radius:8px;
+    }
+  }
   
   .help-btn {
-    position:fixed; top:12px; right:12px; width:32px; height:32px;
+    position:fixed; top:8px; right:8px; width:28px; height:28px;
     background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
     border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;
-    font:bold 14px system-ui; color:white; user-select:none;
+    font:bold 12px system-ui; color:white; user-select:none;
     transition:background 0.2s ease;
   }
   .help-btn:hover { background:rgba(255,255,255,0.2); }
+  @media (min-width: 600px) {
+    .help-btn { top:12px; right:12px; width:32px; height:32px; font-size:14px; }
+  }
   
   .modal {
     position:fixed; top:0; left:0; width:100vw; height:100vh;
-    background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center;
-    z-index:1000;
+    background:rgba(0,0,0,0.7); display:none; align-items:flex-start; justify-content:center;
+    z-index:1000; overflow-y:auto; padding:20px 0;
   }
   .modal.show { display:flex; }
   
   .modal-content {
-    max-width:500px; margin:20px; padding:30px; background:#1a1f2b; border:1px solid #2a3441;
-    border-radius:12px; color:#e6f4ff; font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    box-shadow:0 20px 40px rgba(0,0,0,0.5);
+    max-width:500px; width:calc(100vw - 40px); margin:0 20px; padding:20px;
+    background:#1a1f2b; border:1px solid #2a3441; border-radius:12px; 
+    color:#e6f4ff; font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    box-shadow:0 20px 40px rgba(0,0,0,0.5); max-height:calc(100vh - 80px); overflow-y:auto;
+  }
+  
+  @media (min-width: 600px) {
+    .modal { align-items:center; padding:40px 0; }
+    .modal-content { 
+      font-size:16px; line-height:1.5; padding:30px; 
+      width:auto; margin:20px; max-height:calc(100vh - 120px);
+    }
   }
   .modal-content h2 {
-    margin:0 0 20px 0; color:#90ee90; font-size:20px; font-weight:normal;
+    margin:0 0 15px 0; color:#90ee90; font-size:18px; font-weight:normal;
+  }
+  @media (min-width: 600px) {
+    .modal-content h2 { font-size:20px; margin-bottom:20px; }
   }
   .modal-content ul {
     margin:0; padding-left:20px; color:#a0b3c6;
   }
   .modal-content li { margin:8px 0; }
   .modal-content p {
-    margin:15px 0; color:#c0d0e0; font-style:italic;
+    margin:12px 0; color:#c0d0e0; font-style:italic;
+  }
+  @media (min-width: 600px) {
+    .modal-content p { margin:15px 0; }
   }
   .learn-more-btn {
     display:inline-block; margin-top:20px; padding:6px 12px;
@@ -154,8 +178,14 @@ function hideHelp() {
     }
     reset() {
       const w = worldW(), h = worldH();
-      this.x = rand(0.08*w, 0.92*w);
-      this.y = rand(0.90*h, 0.98*h);
+      // Ensure bubbles have enough space on all screen sizes
+      const minMargin = Math.min(w, h) * 0.05; // 5% margin minimum
+      const marginX = Math.max(minMargin, w * 0.08);
+      const marginY = Math.max(minMargin, h * 0.08);
+      
+      this.x = rand(marginX, w - marginX);
+      this.y = rand(h - marginY, h - marginY * 0.3); // Stay near bottom
+      
       // Use logical pixels, not device pixels for radius to avoid DPR issues
       this.r = rand(R_START_MIN, R_START_MAX);
       this.vy = 0;
