@@ -93,8 +93,6 @@ export class RoomDurableObject {
   }
 }
 
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -104,11 +102,8 @@ export default {
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
 
-    try {
-      return await getAssetFromKV({ request, waitUntil: ctx.waitUntil.bind(ctx) }, { ASSET_NAMESPACE: env.__STATIC_CONTENT });
-    } catch (e) {
-      return new Response("Not found", { status: 404 });
-    }
+    // Let Pages handle static assets
+    return env.ASSETS.fetch(request);
   }
 };
 
