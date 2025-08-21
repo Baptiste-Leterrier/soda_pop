@@ -20,6 +20,11 @@ export class RoomDurableObject {
     const now = Date.now();
     for (const [id, c] of [...this.clients]) {
       if (now - c.lastSeen > 20000) { // 20s idle
+        // Force bubble to pop when connection times out
+        if (c.state) {
+          c.state.state = 'pop';
+          this.broadcast({type:'state', clients:[c.state]});
+        }
         try { c.ws.close(1001, 'timeout'); } catch {}
         this.clients.delete(id);
         this.broadcast({type:'goodbye', id});
@@ -86,6 +91,12 @@ export class RoomDurableObject {
       server.addEventListener('close', () => {
         clearInterval(heartbeat);
         if (clientId && this.clients.has(clientId)) {
+          // Force bubble to pop when user disconnects
+          const client = this.clients.get(clientId);
+          if (client && client.state) {
+            client.state.state = 'pop';
+            this.broadcast({type:'state', clients:[client.state]});
+          }
           this.clients.delete(clientId);
           this.broadcast({type:'goodbye', id: clientId});
         }

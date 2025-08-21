@@ -150,22 +150,27 @@
       };
     }
     applyRemote(state) {
-      // Snap toward remote state, then let local physics continue for fluidity
+      // Only sync size and critical state, not position to avoid jitter
       const lerp = (a,b,s)=>a+(b-a)*s;
-      // Use lighter interpolation to reduce jitter
-      const s = 0.15;
-      this.x = lerp(this.x, state.x, s);
-      this.y = lerp(this.y, state.y, s);
-      this.r = lerp(this.r, state.r, s);
-      this.vy = lerp(this.vy, state.vy ?? this.vy, s);
-      // Only update state if significantly different to avoid conflicts
-      if (state.state !== this.state && (state.state === 'pop' || this.state === 'rest')) {
-        this.state = state.state;
-      }
+      
+      // Sync size and growth parameters for consistency
+      this.r = lerp(this.r, state.r, 0.3);
       this.lastGrowthAt = state.lastGrowthAt || this.lastGrowthAt;
-      // Sync growth parameters to maintain consistency
       this.growthInterval = state.growthInterval || this.growthInterval;
       this.growthFactor = state.growthFactor || this.growthFactor;
+      
+      // Force state changes for critical transitions
+      if (state.state !== this.state) {
+        if (state.state === 'rise' && this.state === 'rest') {
+          this.state = 'rise';
+          this.vy = 0; // Reset velocity for consistent rise
+        } else if (state.state === 'pop') {
+          this.state = 'pop';
+          this.popStart = now();
+        } else if (state.state === 'rest' && this.state === 'pop') {
+          this.reset(); // Sync reset after pop
+        }
+      }
     }
   }
 
