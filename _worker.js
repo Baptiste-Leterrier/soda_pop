@@ -93,8 +93,6 @@ export class RoomDurableObject {
   }
 }
 
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
