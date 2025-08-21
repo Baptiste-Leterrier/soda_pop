@@ -45,13 +45,15 @@
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
     ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
 
-  // ---- simulation params (tuned for “quick but not too much”) ----
+  // ---- simulation params (tuned for "quick but not too much") ----
   const R_START_MIN = 2.5;      // px
   const R_START_MAX = 5.5;      // px
   const R_POP_THRESHOLD = 6.0;  // px
-  const GROWTH_EVERY_MS = 5000; // +1% every 5s
-  const GROWTH_FACTOR = 1.01;   // multiplicative
-  const UPDATE_HZ = 5;          // send to server 5x/sec
+  const GROWTH_EVERY_MS_MIN = 3000; // minimum 3s between growth
+  const GROWTH_EVERY_MS_MAX = 8000; // maximum 8s between growth
+  const GROWTH_FACTOR_MIN = 1.005;  // minimum growth per step
+  const GROWTH_FACTOR_MAX = 1.025;  // maximum growth per step
+  const UPDATE_HZ = 1;          // send to server 1x/sec for stability
   const SEND_INTERVAL = 1000 / UPDATE_HZ;
 
   // Springy “soda rise” feel
@@ -80,6 +82,9 @@
       this.state = 'rest'; // 'rest' (bottom bob), 'rise'
       this.createdAt = now();
       this.lastGrowthAt = now();
+      // Random growth parameters for this bubble
+      this.growthInterval = rand(GROWTH_EVERY_MS_MIN, GROWTH_EVERY_MS_MAX);
+      this.growthFactor = rand(GROWTH_FACTOR_MIN, GROWTH_FACTOR_MAX);
       this.color = this.me ? '#90ee90' : '#add8e6'; // lightgreen vs lightblue
     }
     ensureInBounds() {
@@ -87,10 +92,10 @@
       this.y = clamp(this.y, this.r, worldH()-this.r);
     }
     grow(t) {
-      if (t - this.lastGrowthAt >= GROWTH_EVERY_MS) {
-        const steps = Math.floor((t - this.lastGrowthAt)/GROWTH_EVERY_MS);
-        for (let i=0;i<steps;i++) this.r *= GROWTH_FACTOR;
-        this.lastGrowthAt += steps*GROWTH_EVERY_MS;
+      if (t - this.lastGrowthAt >= this.growthInterval) {
+        const steps = Math.floor((t - this.lastGrowthAt)/this.growthInterval);
+        for (let i=0;i<steps;i++) this.r *= this.growthFactor;
+        this.lastGrowthAt += steps*this.growthInterval;
       }
     }
     update(dt, t) {
@@ -136,7 +141,8 @@
     serialize(t) {
       return {
         id: this.id, x:this.x, y:this.y, r:this.r, vy:this.vy,
-        state:this.state, lastGrowthAt:this.lastGrowthAt, t
+        state:this.state, lastGrowthAt:this.lastGrowthAt, 
+        growthInterval:this.growthInterval, growthFactor:this.growthFactor, t
       };
     }
     applyRemote(state) {
@@ -153,6 +159,9 @@
         this.state = state.state;
       }
       this.lastGrowthAt = state.lastGrowthAt || this.lastGrowthAt;
+      // Sync growth parameters to maintain consistency
+      this.growthInterval = state.growthInterval || this.growthInterval;
+      this.growthFactor = state.growthFactor || this.growthFactor;
     }
   }
 

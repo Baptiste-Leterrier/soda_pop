@@ -53,7 +53,7 @@ export class RoomDurableObject {
         try { server.send('{"type":"ping"}'); } catch {}
         this.prune();
         this.snapshotTick();
-      }, 5000);
+      }, 10000); // Reduced frequency to 10s for less network noise
 
       server.addEventListener('message', (ev) => {
         try {
