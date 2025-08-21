@@ -97,13 +97,12 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/ws') {
-      // route everyone to a single global room; change the name to shard if you want
       const id = env.ROOM_DO.idFromName('global-room');
       const stub = env.ROOM_DO.get(id);
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
-    // Let static assets (Pages) handle everything else
-    return env.ASSETS.fetch(request);
+    return env.ASSETS.fetch(request); // <-- replace with:
+    // return env.__STATIC_CONTENT.fetch(request);
   }
 };
 
