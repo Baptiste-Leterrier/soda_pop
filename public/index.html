@@ -77,7 +77,8 @@
       const w = worldW(), h = worldH();
       this.x = rand(0.08*w, 0.92*w);
       this.y = rand(0.90*h, 0.98*h);
-      this.r = rand(R_START_MIN, R_START_MAX)*dpr;
+      // Use logical pixels, not device pixels for radius to avoid DPR issues
+      this.r = rand(R_START_MIN, R_START_MAX);
       this.vy = 0;
       this.state = 'rest'; // 'rest' (bottom bob), 'rise'
       this.createdAt = now();
@@ -88,8 +89,9 @@
       this.color = this.me ? '#90ee90' : '#add8e6'; // lightgreen vs lightblue
     }
     ensureInBounds() {
-      this.x = clamp(this.x, this.r, worldW()-this.r);
-      this.y = clamp(this.y, this.r, worldH()-this.r);
+      const drawR = this.r * dpr;
+      this.x = clamp(this.x, drawR, worldW()-drawR);
+      this.y = clamp(this.y, drawR, worldH()-drawR);
     }
     grow(t) {
       if (t - this.lastGrowthAt >= this.growthInterval) {
@@ -105,12 +107,12 @@
         // gentle bobbing
         const bob = Math.sin(t * HOVER_FREQ + this.x*0.001) * HOVER_AMPL * dpr;
         this.y = Math.max(this.y + (bob*0.02), 0.90*worldH());
-        if (this.r/dpr >= R_POP_THRESHOLD) this.state = 'rise';
+        if (this.r >= R_POP_THRESHOLD) this.state = 'rise';
       } else if (this.state === 'rise') {
-        this.vy += RISE_ACCEL * dt * dpr * (1 + (this.r/(8*dpr)));
+        this.vy += RISE_ACCEL * dt * dpr * (1 + (this.r/8));
         this.vy *= Math.pow(RISE_DRAG, dt);
         this.y += this.vy * dt;
-        if (this.y <= this.r) {
+        if (this.y <= this.r * dpr) {
           this.state = 'pop';
           this.popStart = t;
         }
@@ -126,15 +128,17 @@
       this.ensureInBounds();
     }
     draw(ctx) {
+      // Convert logical radius to device pixels for drawing
+      const drawR = this.r * dpr;
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+      ctx.arc(this.x, this.y, drawR, 0, Math.PI*2);
       ctx.fillStyle = this.color;
       ctx.globalAlpha = 0.9;
       ctx.fill();
       ctx.globalAlpha = 1;
       // subtle highlight
       ctx.beginPath();
-      ctx.arc(this.x - this.r*0.35, this.y - this.r*0.35, this.r*0.25, 0, Math.PI*2);
+      ctx.arc(this.x - drawR*0.35, this.y - drawR*0.35, drawR*0.25, 0, Math.PI*2);
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.fill();
     }
