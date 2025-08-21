@@ -93,6 +93,8 @@ export class RoomDurableObject {
   }
 }
 
+import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -101,14 +103,15 @@ export default {
       const stub = env.ROOM_DO.get(id);
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
-    return env.ASSETS.fetch(request); // <-- replace with:
-    // return env.__STATIC_CONTENT.fetch(request);
+
+    try {
+      return await getAssetFromKV({ request, waitUntil: ctx.waitUntil.bind(ctx) }, { ASSET_NAMESPACE: env.__STATIC_CONTENT });
+    } catch (e) {
+      return new Response("Not found", { status: 404 });
+    }
   }
 };
 
 export const durable_object = { RoomDurableObject };
 
 export const onRequest = undefined; // ensure Pages Functions use module syntax
-
-// Bindings hint for Pages (ASSETS) gets injected by the platform.
-// Ensure in wrangler.toml you bind ROOM_DO and set migrations.
