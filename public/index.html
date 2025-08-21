@@ -45,6 +45,7 @@
     background:#1a1f2b; border:1px solid #2a3441; border-radius:12px; 
     color:#e6f4ff; font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     box-shadow:0 20px 40px rgba(0,0,0,0.5); max-height:calc(100vh - 80px); overflow-y:auto;
+    position:relative;
   }
   
   @media (min-width: 600px) {
@@ -79,6 +80,13 @@
   .learn-more-btn:hover {
     background:rgba(144,238,144,0.2); border-color:rgba(144,238,144,0.5);
   }
+  .modal-close {
+    position:absolute; top:10px; right:10px; width:24px; height:24px;
+    background:none; border:none; color:#a0b3c6; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font:bold 16px system-ui; line-height:1; transition:color 0.2s ease;
+  }
+  .modal-close:hover { color:#e6f4ff; }
 </style>
 </head>
 <body>
@@ -86,6 +94,7 @@
 <div class="help-btn" onclick="showHelp()">?</div>
 <div class="modal" id="helpModal" onclick="hideHelp()">
   <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="hideHelp()">&times;</button>
     <h2>The Bubble Experiment</h2>
     <ul>
       <li>Your bubble is <b style="color:#90ee90">light green</b></li>
