@@ -101,9 +101,7 @@ export default {
       const stub = env.ROOM_DO.get(id);
       return stub.fetch(new Request(new URL('/durable', url).toString(), request));
     }
-
-    // Let Pages handle static assets
-    return env.ASSETS.fetch(request);
+    return env.ASSETS.fetch(request); // Pages injects this
   }
 };
 
