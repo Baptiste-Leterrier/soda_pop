@@ -14,13 +14,82 @@
     border-radius:8px; user-select:none; pointer-events:none;
   }
   .hud b { color:#e6f4ff }
+  
+  .help-btn {
+    position:fixed; top:12px; right:12px; width:32px; height:32px;
+    background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+    border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font:bold 14px system-ui; color:white; user-select:none;
+    transition:background 0.2s ease;
+  }
+  .help-btn:hover { background:rgba(255,255,255,0.2); }
+  
+  .modal {
+    position:fixed; top:0; left:0; width:100vw; height:100vh;
+    background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center;
+    z-index:1000;
+  }
+  .modal.show { display:flex; }
+  
+  .modal-content {
+    max-width:500px; margin:20px; padding:30px; background:#1a1f2b; border:1px solid #2a3441;
+    border-radius:12px; color:#e6f4ff; font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    box-shadow:0 20px 40px rgba(0,0,0,0.5);
+  }
+  .modal-content h2 {
+    margin:0 0 20px 0; color:#90ee90; font-size:20px; font-weight:normal;
+  }
+  .modal-content ul {
+    margin:0; padding-left:20px; color:#a0b3c6;
+  }
+  .modal-content li { margin:8px 0; }
+  .modal-content p {
+    margin:15px 0; color:#c0d0e0; font-style:italic;
+  }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div class="hud">you = <b style="color:#90ee90">light green</b>, others = <b style="color:#add8e6">light blue</b></div>
+<div class="help-btn" onclick="showHelp()">?</div>
+<div class="modal" id="helpModal" onclick="hideHelp()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <h2>The Bubble Experiment</h2>
+    <ul>
+      <li>Your bubble is <b style="color:#90ee90">light green</b></li>
+      <li>Others bubble are <b style="color:#add8e6">light blue</b></li>
+      <li>Bubbles grow over time</li>
+      <li>When they reach a certain size, it rise and .... pop</li>
+      <li>Then a new bubble is created</li>
+    </ul>
+    
+    <p>You are watching the bubble, nothing is expected of you.</p>
+    
+    <p>You can meditate watching the bubble.</p>
+    
+    <p>You can think of all the others that are watching their bubbles. And maybe yours.</p>
+    
+    <p>You are never alone on this page because you still have your bubble.</p>
+    
+    <p>You can race other bubble if you want, just like when you were a kid.</p>
+    
+    <p>You can think that in our world that is moving very fast, the bubble anchors you to the moment.</p>
+    
+    <p>You can love the bubble</p>
+    
+    <p><em>Your bubble is ephemeral.</em></p>
+  </div>
+</div>
 
 <script>
+// Help modal functions
+function showHelp() {
+  document.getElementById('helpModal').classList.add('show');
+}
+function hideHelp() {
+  document.getElementById('helpModal').classList.remove('show');
+}
+
 (() => {
   const WS_PATH = (location.protocol === 'https:' ? 'wss://' : 'ws://') + "sodapop.coresentry.workers.dev" + '/ws';
   const canvas = document.getElementById('c');
