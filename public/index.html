@@ -22,7 +22,7 @@
 
 <script>
 (() => {
-  const WS_PATH = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  const WS_PATH = (location.protocol === 'https:' ? 'wss://' : 'ws://') + "sodapop.coresentry.workers.dev" + '/ws';
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   let dpr = Math.max(1, window.devicePixelRatio || 1);
